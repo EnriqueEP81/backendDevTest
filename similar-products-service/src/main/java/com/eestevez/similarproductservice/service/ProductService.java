@@ -13,6 +13,10 @@ import org.springframework.web.client.RestTemplate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -21,6 +25,7 @@ import java.util.stream.Collectors;
 public class ProductService {
 
     private final RestTemplate restTemplate;
+    private final ExecutorService executor = Executors.newFixedThreadPool(100);
 
     @Value("${external.service.base-url}")
     private String baseUrl;
@@ -35,6 +40,31 @@ public class ProductService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
+
+    public List<ProductDetail> findSimilarProductsAsync(String productId) {
+        String[] similarIds = restTemplate.getForObject(
+                baseUrl + "/" + productId + "/similarids",
+                String[].class);
+
+        List<CompletableFuture<ProductDetail>> futures = Arrays.stream(similarIds)
+                .map(id -> CompletableFuture.supplyAsync(() -> findProductDetail(id), executor)
+                        .orTimeout(10, TimeUnit.SECONDS)
+                        .exceptionally(ex -> {
+                            log.error("Error fetching product detail for ID {}: {}", id, ex.getMessage());
+                            return null;
+                        })
+                )
+                .collect(Collectors.toList());
+
+
+        List<ProductDetail> results = futures.stream()
+                .map(CompletableFuture::join)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        return results;
+    }
+
     // Slightly better performance returning ProductDetail(null) than Optional<ProductDetail>
     private ProductDetail findProductDetail(String productId){
         try {
