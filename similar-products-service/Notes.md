@@ -11,3 +11,8 @@ To execute the test run:
 ```
 docker-compose run --rm k6 run scripts/test.js
 ```
+With the initial solution, k6 tests make around 5000 http requests when executed on my laptop  
+I'm considering two strategies to improve the performance :
+### catching: 
+Using Caffeine to cache results for 5 minutes. k6 tests  execute around 12000+ requests
+

@@ -4,6 +4,7 @@ import com.eestevez.similarproductservice.model.ProductDetail;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
@@ -23,7 +24,7 @@ public class ProductService {
 
     @Value("${external.service.base-url}")
     private String baseUrl;
-
+    @Cacheable(value = "products_cache", key = "#productId")
     public List<ProductDetail> findSimilarProducts(String productId) {
         String[] similarIds = restTemplate.getForObject(
                 baseUrl + "/" + productId + "/similarids",
